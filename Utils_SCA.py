@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import os, sys, argparse, glob
 
 
@@ -173,8 +171,7 @@ def RF(image, mask, name="RF"):
 		# 如果condition是向量,则x和y是更高级别的矩阵,那么它选择从x和y复制哪个行(外部维度).如果condition与x和y具有相同的形状,那么它将选择从x和y复制哪个元素.
 		# Convert from complex number to 2 channel
 		freq_dest = tf_channel(freq_dest)
-	return tf.identity(freq_dest, name=name)#它返回一个和输入的 tensor 大小和数值都一样的 tensor ,类似于 y=x 操作
-
+	return tf.identity(freq_dest, name=name)
 ###############################################################################
 def FhRh(freq, mask, name='FhRh', is_normalized=False):
 	with tf.variable_scope(name+'_scope'):
@@ -198,7 +195,7 @@ def FhRh(freq, mask, name='FhRh', is_normalized=False):
 
 		# Convert from complex number to 2 channel
 		image = tf_channel(image)
-	return tf.identity(image, name)#它返回一个和输入的 tensor 大小和数值都一样的 tensor ,类似于 y=x 操作
+	return tf.identity(image, name)
 
 ###############################################################################
 def update(recon, image, mask, name='update'):
@@ -241,7 +238,6 @@ def ChannelWiseAttention(x: tf.Tensor, name: str):
         channel_wise_attention = tf.tile(input=channel_wise_attention, multiples=[1, H*W])
         attention = tf.reshape(channel_wise_attention, [-1, C, H, W])
         attention_x = tf.multiply(x=x, y=attention)
-		# np.save('/home1/wangcy/JunLyu/lgy/RefineGAN_brain/attention/ca/ca.npy', attention_x)
         return attention_x
 
 
@@ -262,27 +258,10 @@ def SpatialAttention(x: tf.Tensor, name: str, k: int=1024):
         spatial_attention = tf.tile(input=spatial_attention, multiples=[1, C])  # batch_size, w*h*c
         attention = tf.reshape(spatial_attention, [-1, C, H, W])  # batch_size, height, w, channel
         attention_x = tf.multiply(x=x, y=attention)
-		# np.save('/home1/wangcy/JunLyu/lgy/RefineGAN_brain/attention/sa/sa.npy', attention_x)
-		# i = 1
-		# sess = tf.Session()
-		# sa0_numpy = attention_x.eval(session=sess)
-		# np.save('/home1/wangcy/JunLyu/lgy/RefineGAN_brain/attention/sa/sa_'+str(i)+'.npy',sa0_numpy);
-		# i = i+1
         return attention_x
 ###############################################################################
 # FusionNet
 @layer_register(log_shape=True)
-# def residual(x, chan, first=False):
-# 	with argscope([Conv2D], stride=1, kernel_shape=3):
-# 		input = x
-# 		return (LinearWrap(x)
-# 				.Conv2D('conv0', chan, padding='SAME')
-# 				# .Dropout('drop', 0.5)
-# 				.Conv2D('conv1', chan/2, padding='SAME')
-# 				.Conv2D('conv2', chan, padding='SAME', nl=tf.identity)
-# 				# .Dropout('drop', 0.5)
-# 				# .InstanceNorm('inorm')
-# 				()) + input
 def residual(x, chan, first=False):
 	with argscope([Conv2D], stride=1, kernel_shape=3):
 		input = x
@@ -357,45 +336,21 @@ def arch_generator(img):
 		# e3 = Dropout('dr', e3, 0.9)
 
 		d3 = residual_dec('d3',    e3, NB_FILTERS*4)
-		#se3 = channel_wise_attention('se3',d3, NB_FILTERS*4,32, 32, 8)
 		sa3 = SpatialAttention(d3, 'sa3')
-		# cwa3 = channel_wise_attention(sa3,d3,256,'cwa3')
 		cwa3 = ChannelWiseAttention(sa3, 'cwa3')
-		# cwa3 = ChannelWiseAttention(input_x=sa3, out_dim=NB_FILTERS * 4, ratio=reduction_ratio, name="cwa3")
-		# sa3 = SpatialAttention(cwa3,'sa3')
-		#d2 = residual_dec('d2', d3 + e2, NB_FILTERS * 2)
+
 		d2 = residual_dec('d2', cwa3+e2, NB_FILTERS*2)
-		#se2 = channel_wise_attention('se2',d2,NB_FILTERS*2, 64, 64, 8)
 		sa2 = SpatialAttention(d2, 'sa2')
-		# cwa2 = channel_wise_attention(sa2,d2,256, 'cwa2')
 		cwa2 = ChannelWiseAttention(sa2, 'cwa2')
-		# cwa2 = ChannelWiseAttention(input_x=sa2, out_dim=NB_FILTERS * 2, ratio=reduction_ratio, name="cwa2")
-		# sa2 = SpatialAttention(cwa2, 'sa2')
+
 		d1 = residual_dec('d1', cwa2+e1, NB_FILTERS*1)
-		#se1 = channel_wise_attention('se1',d1,NB_FILTERS*1, 128, 128, 8)
 		sa1 = SpatialAttention(d1, 'sa1')
-		# cwa1 = channel_wise_attention(sa1,d1,256, 'cwa1')
 		cwa1 = ChannelWiseAttention(sa1,'cwa1')
-		# cwa1 = ChannelWiseAttention(input_x=sa1, out_dim=NB_FILTERS * 1, ratio=reduction_ratio, name="cwa1")
-		# sa1 = SpatialAttention(cwa1, 'sa1')
+
 		d0 = residual_dec('d0', cwa1+e0, NB_FILTERS*1)
-		#se0 = channel_wise_attention('se0',d0,NB_FILTERS*1,256, 256, 8)
 		sa0 = SpatialAttention(d0, 'sa0')
-		# sa = sa0
-		# i = 1
-		# with tf.Session() as sess:
-		# sess = tf.Session()
-		# sa0_numpy = sa.eval(session=sess)
-		# np.save('/home1/wangcy/JunLyu/lgy/RefineGAN_brain/attention/sa/sa_'+str(i)+'.npy',sa0_numpy);
-		# cwa0 = channel_wise_attention(sa0,d0,256, 'cwa0')
 		cwa0 = ChannelWiseAttention(sa0,'cwa0')
-		# ca = cwa0
-		# with tf.Session() as sess:
-		# cwa0_numpy = ca.eval(session=sess)
-		# np.save('/home1/wangcy/JunLyu/lgy/RefineGAN_brain/attention/ca/ca_'+str(i)+'.npy',cwa0_numpy);
-		# i=i+1
-		# cwa0 = ChannelWiseAttention(input_x=sa0, out_dim=NB_FILTERS * 1, ratio=reduction_ratio, name="cwa0")
-		# sa0 = SpatialAttention(cwa0, 'sa0')
+		
 		dd =  (LinearWrap(cwa0)
 				.Conv2D('convlast', 2, kernel_shape=3, stride=1, padding='SAME', nl=tf.tanh, use_bias=True) ())
 		l  = (dd)

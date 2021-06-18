@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-#from tensorflow.python.keras._impl.keras.activations import relu
-#from tensorflow.contrib.layers import relu
 from tensorpack.tfutils import symbolic_functions
 
 from Utils_SCA import *
@@ -83,7 +80,6 @@ class Model(GANModelDesc):
 		# C = cvt2tanh(C)
 
 		A = tf.identity(A, name='A')
-		#tf.identity它返回一个和输入的 tensor 大小和数值都一样的 tensor ,类似于 y=x 操作
 		R = tf.identity(R, name='R')
 		B = tf.identity(B, name='B')
 		#-------------------------------lgy
@@ -340,14 +336,6 @@ class Model(GANModelDesc):
 			img = tf.clip_by_value(img, 0, 255)
 			
 			tf.summary.image(name+'_real', tf.transpose(img[:,0:1,...], [0, 2, 3, 1]), max_outputs=50)
-			#tf.summary.image用来输出Summary的图像
-			#name：节点的名字，也就是在tensorboard上面会显示的名字
-			# tensor：格式必须是四维的[batch_size,height, width, channels]，
-			# 对于channels：
-			# channels=1为灰度图像
-			# channels=3为RGB图像
-			# channels=4为RGBA图像（Red（红色） Green（绿色） Blue（蓝色）和 Alpha合成，也代表了透明度）
-			# max_outputs,要生成图像的最大批处理元素数
 
 			tf.summary.image(name+'_imag', tf.transpose(img[:,1:2,...], [0, 2, 3, 1]), max_outputs=50)
 			#tf.transpose置换 a,根据 perm 重新排列尺寸. 返回的张量的维度 i 将对应于输入维度 perm[i].
@@ -541,8 +529,7 @@ def main():
 				InferenceRunner(ds_valid, [
 										   ScalarStats('PSNR_zfill_A'), 
 										   ScalarStats('PSNR_zfill_B'),
-										   ScalarStats('PSNR_recon_A')
-					,
+										   ScalarStats('PSNR_recon_A'),
 										   ScalarStats('PSNR_recon_B'),
 										   ScalarStats('PSNR_boost_A'), 
 										   ScalarStats('PSNR_boost_B'),
@@ -574,13 +561,12 @@ def main():
 					]),
 				ClipCallback(),
 				ScheduledHyperParamSetter('learning_rate', 
-					[(0, 1e-4), (100, 3e-4), (200, 2e-5), (300, 1e-5), (400, 2e-6), (500, 1e-6)], interp='linear')
+					[(0, 1e-4), (100, 3e-4), (200, 2e-5), (300, 1e-5)], interp='linear')
 				
 				],
 			session_init=SaverRestore(args.load) if args.load else None, 
 			steps_per_epoch=ds_train.size(),
 			#max_epoch=500
-            #max_epoch=5
 			max_epoch = 300
 		)
 
